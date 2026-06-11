@@ -30,6 +30,16 @@ contextBridge.exposeInMainWorld('api', {
   cacheStats: () => ipcRenderer.invoke('cache:stats'),
   cacheClear: () => ipcRenderer.invoke('cache:clear'),
 
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+  setSettings: (settings) => ipcRenderer.invoke('settings:set', settings),
+
+  batchRetry: (ids) => ipcRenderer.invoke('queue:batch-retry', ids),
+  batchRemove: (ids) => ipcRenderer.invoke('queue:batch-remove', ids),
+  getDetailedStats: () => ipcRenderer.invoke('queue:detailed-stats'),
+  getDuplicates: () => ipcRenderer.invoke('queue:duplicates'),
+  exportLyrics: () => ipcRenderer.invoke('lyrics:export'),
+  importLyrics: () => ipcRenderer.invoke('lyrics:import'),
+
   onSongUpdate: (cb) => ipcRenderer.on('song:update', (_, d) => cb(d)),
   onSongError: (cb) => ipcRenderer.on('song:error', (_, d) => cb(d)),
   onSongRemoved: (cb) => ipcRenderer.on('song:removed', (_, d) => cb(d)),

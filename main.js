@@ -93,6 +93,9 @@ function startWatching(folderPath) {
             if (added > 0) {
               sendToRenderer('watch:new-files', { folder: folderPath, added });
               sendToRenderer('queue:stats', queueManager.getStats());
+              if (store.get('autoStart', false) && !queueManager.isRunning) {
+                queueManager.start();
+              }
             }
           }
         } catch {}
@@ -121,13 +124,13 @@ app.whenReady().then(() => {
   initCache(app.getPath('userData'));
 
   queueManager = new QueueManager(store, {
-    concurrency: 3,
+    concurrency: store.get('concurrency', 3),
     onProgress: (song) => sendToRenderer('song:update', song),
     onStats: (stats) => sendToRenderer('queue:stats', stats),
     onError: (song, error) => sendToRenderer('song:error', { id: song.id, error: error.message }),
     onComplete: (stats) => {
       sendToRenderer('queue:complete', stats);
-      if (Notification.isSupported()) {
+      if (Notification.isSupported() && store.get('notifications', true)) {
         new Notification({
           title: 'Lyrics Grabber',
           body: `Done! ${stats.completed} lyrics found, ${stats.failed} failed.`
@@ -140,7 +143,9 @@ app.whenReady().then(() => {
   if (pendingCount > 0) console.log(`Resumed ${pendingCount} pending songs`);
 
   const folders = store.get('folders', []);
-  for (const f of folders) startWatching(f);
+  if (store.get('watchFolders', true)) {
+    for (const f of folders) startWatching(f);
+  }
 
   setupIPC();
   createWindow();
@@ -165,7 +170,7 @@ function setupIPC() {
       }, existingIds);
 
       const added = queueManager.addSongs(result.songs, folderPath);
-      startWatching(folderPath);
+      if (store.get('watchFolders', true)) startWatching(folderPath);
       sendToRenderer('scan:complete', {
         folder: folderPath,
         added,
@@ -272,6 +277,92 @@ function setupIPC() {
   ipcMain.handle('theme:set', (_, theme) => store.set('theme', theme));
   ipcMain.handle('theme:get', () => store.get('theme', 'light'));
 
+  ipcMain.handle('settings:get', () => {
+    return {
+      concurrency: store.get('concurrency', 3),
+      skipExisting: store.get('skipExisting', true),
+      watchFolders: store.get('watchFolders', true),
+      notifications: store.get('notifications', true),
+      autoStart: store.get('autoStart', false)
+    };
+  });
+
+  ipcMain.handle('settings:set', (_, settings) => {
+    if (settings.concurrency !== undefined) {
+      const val = Math.max(1, Math.min(10, parseInt(settings.concurrency) || 3));
+      store.set('concurrency', val);
+      queueManager.concurrency = val;
+    }
+    if (settings.skipExisting !== undefined) {
+      store.set('skipExisting', !!settings.skipExisting);
+    }
+    if (settings.watchFolders !== undefined) {
+      const enabled = !!settings.watchFolders;
+      store.set('watchFolders', enabled);
+      if (enabled) {
+        const folders = store.get('folders', []);
+        for (const f of folders) startWatching(f);
+      } else {
+        stopAllWatchers();
+      }
+    }
+    if (settings.notifications !== undefined) {
+      store.set('notifications', !!settings.notifications);
+    }
+    if (settings.autoStart !== undefined) {
+      store.set('autoStart', !!settings.autoStart);
+    }
+    return true;
+  });
+
+  ipcMain.handle('queue:batch-retry', (_, ids) => queueManager.batchRetry(ids));
+  ipcMain.handle('queue:batch-remove', (_, ids) => queueManager.batchRemove(ids));
+  ipcMain.handle('queue:detailed-stats', () => queueManager.getDetailedStats());
+  ipcMain.handle('queue:duplicates', () => queueManager.getDuplicates());
+
+  ipcMain.handle('lyrics:export', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
+    if (result.canceled) return null;
+    const dest = result.filePaths[0];
+    let count = 0;
+    for (const [, song] of queueManager.songs) {
+      if (song.lrcPath && fs.existsSync(song.lrcPath)) {
+        const destFile = path.join(dest, path.basename(song.lrcPath));
+        try { fs.copyFileSync(song.lrcPath, destFile); count++; } catch {}
+      }
+    }
+    return count;
+  });
+
+  ipcMain.handle('lyrics:import', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'LRC Files', extensions: ['lrc'] }]
+    });
+    if (result.canceled) return null;
+    let count = 0;
+    for (const lrcFile of result.filePaths) {
+      const baseName = path.basename(lrcFile, '.lrc').toLowerCase();
+      for (const [, song] of queueManager.songs) {
+        const songBase = path.basename(song.filePath, path.extname(song.filePath)).toLowerCase();
+        if (songBase === baseName) {
+          try {
+            fs.copyFileSync(lrcFile, song.lrcPath);
+            song.status = 'completed';
+            song.lyricsContent = fs.readFileSync(lrcFile, 'utf-8');
+            song.hasSyncedLyrics = song.lyricsContent.includes('[0');
+            song.processedAt = Date.now();
+            queueManager.onProgress(song);
+            count++;
+          } catch {}
+          break;
+        }
+      }
+    }
+    if (count > 0) queueManager.save();
+    return count;
+  });
+
   ipcMain.handle('context-menu:song', (_, songData) => {
     const menu = Menu.buildFromTemplate([
       { label: 'Open in Explorer', click: () => shell.showItemInFolder(songData.filePath) },
@@ -308,7 +399,7 @@ function setupIPC() {
             sendToRenderer('scan:progress', progress);
           }, existingIds);
           const added = queueManager.addSongs(result.songs, p);
-          startWatching(p);
+          if (store.get('watchFolders', true)) startWatching(p);
           sendToRenderer('scan:complete', { folder: p, added, total: result.songs.length, skipped: result.skippedExisting });
           results.push({ folder: p, added, total: result.songs.length });
         }
@@ -320,8 +411,10 @@ function setupIPC() {
 
 app.on('before-quit', () => {
   isQuitting = true;
-  queueManager.pause();
-  queueManager.save();
+  if (queueManager) {
+    queueManager.pause();
+    queueManager.save();
+  }
   stopAllWatchers();
 });
 

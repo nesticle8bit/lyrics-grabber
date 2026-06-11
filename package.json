@@ -1,6 +1,6 @@
 {
   "name": "lyrics-grabber",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Automatic synchronized lyrics fetcher for Navidrome/Feishin",
   "main": "main.js",
   "scripts": {

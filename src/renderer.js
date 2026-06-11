@@ -9,6 +9,9 @@ let coverCache = new Map();
 let prevStats = {};
 let lyricsPreviewCache = new Map();
 let hoverTimeout = null;
+let selectedSongs = new Set();
+let focusedIndex = -1;
+let audioElement = null;
 
 let ROW_HEIGHT = 88;
 const OVERSCAN = 8;
@@ -36,6 +39,8 @@ const foldersPanel = $('#folders-panel');
 const foldersList = $('#folders-list');
 const lyricsModal = $('#lyrics-modal');
 const lyricsEditor = $('#lyrics-editor');
+const batchToolbar = $('#batch-toolbar');
+const statsModal = $('#stats-modal');
 
 const scrollContainer = document.createElement('div');
 scrollContainer.className = 'virtual-scroll-container';
@@ -99,6 +104,10 @@ async function init() {
   songList.addEventListener('scroll', onScroll, { passive: true });
   setupDragDrop();
   setupKeyboardShortcuts();
+  setupBatchToolbar();
+  setupStatsModal();
+  setupAudioPlayer();
+  setupExportImport();
 }
 
 let scrollRAF = null;
@@ -134,8 +143,11 @@ function setupKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); searchInput.focus(); searchInput.select(); }
     if (e.key === 'Escape') {
-      if (lyricsModal.style.display !== 'none') { lyricsModal.style.display = 'none'; return; }
+      if (lyricsModal.style.display !== 'none') { stopAudio(); lyricsModal.style.display = 'none'; return; }
+      if (statsModal.style.display !== 'none') { statsModal.style.display = 'none'; return; }
+      if (settingsPanel.style.display !== 'none') { settingsPanel.style.display = 'none'; return; }
       if (foldersPanel.style.display !== 'none') { foldersPanel.style.display = 'none'; return; }
+      if (selectedSongs.size > 0) { selectedSongs.clear(); updateBatchToolbar(); renderVirtual(); return; }
       if (document.activeElement === searchInput) { searchInput.blur(); return; }
     }
     if (e.key === ' ' && document.activeElement !== searchInput && document.activeElement !== lyricsEditor) {
@@ -144,6 +156,237 @@ function setupKeyboardShortcuts() {
       updateRunningState();
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'r') { e.preventDefault(); rescanAll(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a' && document.activeElement !== searchInput && document.activeElement !== lyricsEditor) {
+      e.preventDefault();
+      filteredCache.forEach(s => selectedSongs.add(s.id));
+      updateBatchToolbar();
+      renderVirtual();
+    }
+
+    if (document.activeElement === searchInput || document.activeElement === lyricsEditor) return;
+    if (lyricsModal.style.display !== 'none' || statsModal.style.display !== 'none') return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (focusedIndex < filteredCache.length - 1) {
+        focusedIndex++;
+        scrollToFocused();
+        renderVirtual();
+      }
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (focusedIndex > 0) {
+        focusedIndex--;
+        scrollToFocused();
+        renderVirtual();
+      }
+    }
+    if (e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < filteredCache.length) {
+      e.preventDefault();
+      openLyricsModal(filteredCache[focusedIndex]);
+    }
+    if (e.key === 'Delete' && focusedIndex >= 0 && focusedIndex < filteredCache.length) {
+      e.preventDefault();
+      const song = filteredCache[focusedIndex];
+      window.api.removeSong(song.id);
+      songs.delete(song.id);
+      selectedSongs.delete(song.id);
+      if (focusedIndex >= filteredCache.length - 1) focusedIndex = Math.max(0, filteredCache.length - 2);
+      updateFilteredCache();
+      renderVirtual();
+      updateBatchToolbar();
+    }
+  });
+}
+
+function scrollToFocused() {
+  const scrollTop = songList.scrollTop;
+  const viewportH = songList.clientHeight;
+  const itemTop = focusedIndex * ROW_HEIGHT;
+  const itemBottom = itemTop + ROW_HEIGHT;
+  if (itemTop < scrollTop) songList.scrollTop = itemTop;
+  else if (itemBottom > scrollTop + viewportH) songList.scrollTop = itemBottom - viewportH;
+}
+
+function setupBatchToolbar() {
+  $('#btn-batch-retry').addEventListener('click', async () => {
+    const ids = Array.from(selectedSongs);
+    const count = await window.api.batchRetry(ids);
+    if (count > 0) showToast(`Retrying ${count} songs`);
+    selectedSongs.clear();
+    updateBatchToolbar();
+    refreshAll();
+  });
+  $('#btn-batch-remove').addEventListener('click', async () => {
+    const ids = Array.from(selectedSongs);
+    const count = await window.api.batchRemove(ids);
+    ids.forEach(id => songs.delete(id));
+    selectedSongs.clear();
+    updateBatchToolbar();
+    updateFilteredCache();
+    renderVirtual();
+    if (count > 0) showToast(`Removed ${count} songs`);
+  });
+  $('#btn-batch-clear').addEventListener('click', () => {
+    selectedSongs.clear();
+    updateBatchToolbar();
+    renderVirtual();
+  });
+}
+
+function updateBatchToolbar() {
+  if (selectedSongs.size > 0) {
+    batchToolbar.style.display = 'flex';
+    $('#batch-count').textContent = `${selectedSongs.size} selected`;
+  } else {
+    batchToolbar.style.display = 'none';
+  }
+}
+
+function setupStatsModal() {
+  $('#btn-stats').addEventListener('click', async () => {
+    const stats = await window.api.getDetailedStats();
+    const dupes = await window.api.getDuplicates();
+    renderStatsModal(stats, dupes);
+    statsModal.style.display = 'block';
+  });
+  $('#btn-close-stats').addEventListener('click', () => { statsModal.style.display = 'none'; });
+  $('#stats-backdrop').addEventListener('click', () => { statsModal.style.display = 'none'; });
+}
+
+function renderStatsModal(stats, dupes) {
+  const dashboard = $('#stats-dashboard');
+  const srcEntries = Object.entries(stats.sources).sort((a, b) => b[1] - a[1]);
+  const errEntries = Object.entries(stats.errors).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  dashboard.innerHTML = `
+    <div class="stats-grid">
+      <div class="stats-card">
+        <div class="stats-card-value">${stats.successRate}%</div>
+        <div class="stats-card-label">Success Rate</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value">${stats.synced}</div>
+        <div class="stats-card-label">Synced Lyrics</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value">${stats.plain}</div>
+        <div class="stats-card-label">Plain Lyrics</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-value">${stats.avgTime ? (stats.avgTime / 1000).toFixed(1) + 's' : '-'}</div>
+        <div class="stats-card-label">Avg Time</div>
+      </div>
+    </div>
+    ${srcEntries.length > 0 ? `
+      <div class="stats-section">
+        <div class="stats-section-title">Sources</div>
+        ${srcEntries.map(([src, count]) => `
+          <div class="stats-bar-row">
+            <span class="stats-bar-label">${esc(src)}</span>
+            <div class="stats-bar-track"><div class="stats-bar-fill" style="width:${Math.round(count / stats.completed * 100)}%"></div></div>
+            <span class="stats-bar-value">${count}</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+    ${errEntries.length > 0 ? `
+      <div class="stats-section">
+        <div class="stats-section-title">Top Errors</div>
+        ${errEntries.map(([err, count]) => `
+          <div class="stats-bar-row">
+            <span class="stats-bar-label error">${esc(err)}</span>
+            <span class="stats-bar-value">${count}</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+    ${dupes.length > 0 ? `
+      <div class="stats-section">
+        <div class="stats-section-title">Duplicates (${dupes.length})</div>
+        ${dupes.slice(0, 10).map(d => `
+          <div class="stats-dupe-row">
+            <span>${esc(d.artist)} — ${esc(d.title)}</span>
+            <span class="stats-dupe-path">${esc(shortenPath(d.filePath))}</span>
+          </div>
+        `).join('')}
+        ${dupes.length > 10 ? `<div class="stats-dupe-more">...and ${dupes.length - 10} more</div>` : ''}
+      </div>
+    ` : ''}
+  `;
+}
+
+function setupAudioPlayer() {
+  audioElement = new Audio();
+  const playBtn = $('#btn-audio-play');
+  const iconPlay = playBtn.querySelector('.icon-play');
+  const iconPause = playBtn.querySelector('.icon-pause-audio');
+  const timeEl = $('#audio-time');
+  const durationEl = $('#audio-duration');
+  const progressBar = $('#audio-progress-bar');
+  const progressFillEl = $('#audio-progress-fill');
+
+  playBtn.addEventListener('click', () => {
+    if (audioElement.paused) audioElement.play(); else audioElement.pause();
+  });
+
+  audioElement.addEventListener('play', () => { iconPlay.style.display = 'none'; iconPause.style.display = 'block'; });
+  audioElement.addEventListener('pause', () => { iconPlay.style.display = 'block'; iconPause.style.display = 'none'; });
+  audioElement.addEventListener('timeupdate', () => {
+    timeEl.textContent = formatDuration(audioElement.currentTime);
+    if (audioElement.duration) {
+      progressFillEl.style.width = `${(audioElement.currentTime / audioElement.duration) * 100}%`;
+    }
+  });
+  audioElement.addEventListener('loadedmetadata', () => {
+    durationEl.textContent = formatDuration(audioElement.duration);
+  });
+
+  progressBar.addEventListener('click', (e) => {
+    if (!audioElement.duration) return;
+    const rect = progressBar.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    audioElement.currentTime = ratio * audioElement.duration;
+  });
+
+  $('#btn-sync-stamp').addEventListener('click', () => {
+    if (!audioElement.duration) return;
+    const time = audioElement.currentTime;
+    const min = Math.floor(time / 60);
+    const sec = (time % 60).toFixed(2);
+    const stamp = `[${String(min).padStart(2, '0')}:${sec.padStart(5, '0')}]`;
+
+    const start = lyricsEditor.selectionStart;
+    const val = lyricsEditor.value;
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    const existing = val.substring(lineStart).match(/^\[\d{2}:\d{2}\.\d{2}\]/);
+    if (existing) {
+      lyricsEditor.value = val.substring(0, lineStart) + stamp + val.substring(lineStart + existing[0].length);
+    } else {
+      lyricsEditor.value = val.substring(0, lineStart) + stamp + val.substring(lineStart);
+    }
+    lyricsEditor.selectionStart = lyricsEditor.selectionEnd = lineStart + stamp.length;
+    lyricsEditor.focus();
+  });
+}
+
+function stopAudio() {
+  if (audioElement) { audioElement.pause(); audioElement.src = ''; }
+  $('#audio-player').style.display = 'none';
+}
+
+function setupExportImport() {
+  $('#btn-export-lyrics').addEventListener('click', async () => {
+    const count = await window.api.exportLyrics();
+    if (count !== null) showToast(`Exported ${count} LRC files`);
+  });
+  $('#btn-import-lyrics').addEventListener('click', async () => {
+    const count = await window.api.importLyrics();
+    if (count !== null) {
+      showToast(`Imported ${count} LRC files`);
+      refreshAll();
+    }
   });
 }
 
@@ -155,7 +398,7 @@ async function addFolders() {
   if (!folders) return;
   scanOverlay.style.display = 'flex';
   let totalAdded = 0;
-  for (const folder of folders) { try { const r = await window.api.addFolder(folder); totalAdded += r.added; } catch {} }
+  for (const folder of folders) { try { const r = await window.api.addFolder(folder); totalAdded += r.added; } catch { } }
   scanOverlay.style.display = 'none';
   if (totalAdded > 0) showToast(`Added ${totalAdded} new songs`);
   refreshAll();
@@ -176,14 +419,14 @@ $('#btn-clear').addEventListener('click', async () => {
 $('#btn-rescan').addEventListener('click', rescanAll);
 async function rescanAll() {
   scanOverlay.style.display = 'flex';
-  try { const a = await window.api.rescanAll(); showToast(a > 0 ? `Found ${a} new songs` : 'No new songs found'); } catch {}
+  try { const a = await window.api.rescanAll(); showToast(a > 0 ? `Found ${a} new songs` : 'No new songs found'); } catch { }
   scanOverlay.style.display = 'none';
   refreshAll();
 }
 
 searchInput.addEventListener('input', (e) => {
   if (searchDebounce) clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(() => { searchQuery = e.target.value.toLowerCase(); updateFilteredCache(); renderVirtual(); }, 150);
+  searchDebounce = setTimeout(() => { searchQuery = e.target.value.toLowerCase(); focusedIndex = -1; updateFilteredCache(); renderVirtual(); }, 150);
 });
 
 document.querySelectorAll('.chip').forEach(chip => {
@@ -191,14 +434,98 @@ document.querySelectorAll('.chip').forEach(chip => {
     document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
     chip.classList.add('active');
     currentFilter = chip.dataset.filter;
+    focusedIndex = -1;
     updateFilteredCache(); renderVirtual();
   });
 });
 
+const DARK_THEMES = ['dark', 'palenight', 'ocean', 'deepocean', 'material'];
+
 $('#btn-theme').addEventListener('click', async () => {
-  const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  const current = document.body.getAttribute('data-theme');
+  const isDark = DARK_THEMES.includes(current);
+  const next = isDark ? 'light' : 'dark';
   document.body.setAttribute('data-theme', next);
   await window.api.setTheme(next);
+  updateThemeGrid(next);
+});
+
+// Settings panel
+const settingsPanel = $('#settings-panel');
+$('#btn-settings').addEventListener('click', () => { settingsPanel.style.display = 'block'; loadSettings(); });
+$('#btn-close-settings').addEventListener('click', () => { settingsPanel.style.display = 'none'; });
+$('#settings-backdrop').addEventListener('click', () => { settingsPanel.style.display = 'none'; });
+
+let currentSettings = {};
+
+function updateThemeGrid(theme) {
+  document.querySelectorAll('.theme-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.theme === theme);
+  });
+}
+
+document.querySelectorAll('.theme-swatch').forEach(swatch => {
+  swatch.addEventListener('click', async () => {
+    const theme = swatch.dataset.theme;
+    document.body.setAttribute('data-theme', theme);
+    await window.api.setTheme(theme);
+    updateThemeGrid(theme);
+  });
+});
+
+async function loadSettings() {
+  currentSettings = await window.api.getSettings();
+  $('#concurrency-value').textContent = currentSettings.concurrency;
+  $('#toggle-skip-existing').checked = currentSettings.skipExisting;
+  $('#toggle-watch-folders').checked = currentSettings.watchFolders;
+  $('#toggle-notifications').checked = currentSettings.notifications;
+  $('#toggle-auto-start').checked = currentSettings.autoStart;
+
+  const theme = document.body.getAttribute('data-theme');
+  updateThemeGrid(theme);
+
+  const cacheStats = await window.api.cacheStats();
+  $('#cache-stats-text').textContent = `${cacheStats.entries} entries (${cacheStats.found} found, ${cacheStats.notFound} not found)`;
+}
+
+$('#concurrency-down').addEventListener('click', async () => {
+  const val = Math.max(1, (currentSettings.concurrency || 3) - 1);
+  currentSettings.concurrency = val;
+  $('#concurrency-value').textContent = val;
+  await window.api.setSettings({ concurrency: val });
+});
+
+$('#concurrency-up').addEventListener('click', async () => {
+  const val = Math.min(10, (currentSettings.concurrency || 3) + 1);
+  currentSettings.concurrency = val;
+  $('#concurrency-value').textContent = val;
+  await window.api.setSettings({ concurrency: val });
+});
+
+$('#toggle-skip-existing').addEventListener('change', async (e) => {
+  currentSettings.skipExisting = e.target.checked;
+  await window.api.setSettings({ skipExisting: e.target.checked });
+});
+
+$('#toggle-watch-folders').addEventListener('change', async (e) => {
+  currentSettings.watchFolders = e.target.checked;
+  await window.api.setSettings({ watchFolders: e.target.checked });
+});
+
+$('#toggle-notifications').addEventListener('change', async (e) => {
+  currentSettings.notifications = e.target.checked;
+  await window.api.setSettings({ notifications: e.target.checked });
+});
+
+$('#toggle-auto-start').addEventListener('change', async (e) => {
+  currentSettings.autoStart = e.target.checked;
+  await window.api.setSettings({ autoStart: e.target.checked });
+});
+
+$('#btn-clear-cache').addEventListener('click', async () => {
+  await window.api.cacheClear();
+  $('#cache-stats-text').textContent = '0 entries';
+  showToast('Cache cleared');
 });
 
 $('#btn-folders').addEventListener('click', () => { foldersPanel.style.display = 'block'; renderFolders(); });
@@ -229,13 +556,13 @@ async function renderFolders() {
   });
 }
 
-$('#btn-close-modal').addEventListener('click', () => { lyricsModal.style.display = 'none'; });
-$('#modal-backdrop').addEventListener('click', () => { lyricsModal.style.display = 'none'; });
-$('#btn-cancel-lyrics').addEventListener('click', () => { lyricsModal.style.display = 'none'; });
+$('#btn-close-modal').addEventListener('click', () => { stopAudio(); lyricsModal.style.display = 'none'; });
+$('#modal-backdrop').addEventListener('click', () => { stopAudio(); lyricsModal.style.display = 'none'; });
+$('#btn-cancel-lyrics').addEventListener('click', () => { stopAudio(); lyricsModal.style.display = 'none'; });
 $('#btn-save-lyrics').addEventListener('click', async () => {
   if (!currentModalSongId) return;
   const ok = await window.api.saveSongLyrics(currentModalSongId, lyricsEditor.value);
-  if (ok) { showToast('Lyrics saved'); lyricsModal.style.display = 'none'; refreshAll(); }
+  if (ok) { showToast('Lyrics saved'); stopAudio(); lyricsModal.style.display = 'none'; refreshAll(); }
 });
 
 async function openLyricsModal(song) {
@@ -246,6 +573,23 @@ async function openLyricsModal(song) {
   lyricsEditor.value = lyrics || '';
   lyricsModal.style.display = 'block';
   lyricsEditor.focus();
+
+  const playerEl = $('#audio-player');
+  try {
+    const filePath = song.filePath.replace(/\\/g, '/');
+    audioElement.src = `file:///${filePath}`;
+    audioElement.load();
+    playerEl.style.display = 'flex';
+    $('#audio-time').textContent = '0:00';
+    $('#audio-duration').textContent = formatDuration(song.duration);
+    $('#audio-progress-fill').style.width = '0%';
+    const iconPlay = $('#btn-audio-play .icon-play');
+    const iconPause = $('#btn-audio-play .icon-pause-audio');
+    iconPlay.style.display = 'block';
+    iconPause.style.display = 'none';
+  } catch {
+    playerEl.style.display = 'none';
+  }
 }
 
 let updateBatch = [];
@@ -274,7 +618,7 @@ function flushUpdates() {
 window.api.onQueueStats((stats) => { updateStats(stats); updateProgress(stats); if (stats.processing === 0 && stats.pending === 0 && isRunning) { isRunning = false; updateRunningState(); } });
 window.api.onScanProgress((p) => { scanDetail.textContent = p.current.split(/[/\\]/).slice(-2).join('/'); scanCount.textContent = `${p.scanned} scanned${p.skippedExisting ? `, ${p.skippedExisting} skipped` : ''}`; });
 window.api.onScanComplete(() => { scanOverlay.style.display = 'none'; refreshAll(); });
-window.api.onSongRemoved((id) => { songs.delete(id); updateFilteredCache(); renderVirtual(); });
+window.api.onSongRemoved((id) => { songs.delete(id); selectedSongs.delete(id); updateFilteredCache(); renderVirtual(); updateBatchToolbar(); });
 window.api.onQueueComplete((stats) => { showToast(`Done! ${stats.completed} found, ${stats.failed} failed`); launchConfetti(); updateMiniPlayer(); });
 window.api.onWatchNewFiles((d) => { showToast(`Watch: ${d.added} new file(s)`); refreshAll(); });
 
@@ -394,7 +738,8 @@ function updateFilteredCache() {
   if (searchQuery) {
     list = list.filter(s =>
       s.title.toLowerCase().includes(searchQuery) || s.artist.toLowerCase().includes(searchQuery) ||
-      s.album.toLowerCase().includes(searchQuery) || s.filePath.toLowerCase().includes(searchQuery)
+      s.album.toLowerCase().includes(searchQuery) || s.filePath.toLowerCase().includes(searchQuery) ||
+      (s.lyricsContent && s.lyricsContent.toLowerCase().includes(searchQuery))
     );
   }
   list.sort((a, b) => (SORT_ORDER[a.status] ?? 5) - (SORT_ORDER[b.status] ?? 5));
@@ -420,7 +765,7 @@ function renderVirtual() {
 
   const fragment = document.createDocumentFragment();
   for (let i = startIdx; i < endIdx; i++) {
-    const el = createSongElement(filteredCache[i]);
+    const el = createSongElement(filteredCache[i], i);
     el.style.position = 'absolute';
     el.style.top = `${i * ROW_HEIGHT}px`;
     el.style.left = '0';
@@ -440,9 +785,11 @@ function formatDuration(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function createSongElement(song) {
+function createSongElement(song, idx) {
   const div = document.createElement('div');
-  div.className = `song-card${song.status === 'processing' ? ' is-processing' : ''}`;
+  const isSelected = selectedSongs.has(song.id);
+  const isFocused = idx === focusedIndex;
+  div.className = `song-card${song.status === 'processing' ? ' is-processing' : ''}${isSelected ? ' is-selected' : ''}${isFocused ? ' is-focused' : ''}`;
   div.id = `song-${song.id}`;
 
   const initial = (song.artist[0] || song.title[0] || '?').toUpperCase();
@@ -451,6 +798,7 @@ function createSongElement(song) {
   const dur = formatDuration(song.duration);
 
   div.innerHTML = `
+    <div class="song-select-box${isSelected ? ' checked' : ''}"></div>
     <div class="song-cover">
       <img style="display:none" />
       <div class="song-cover-placeholder">${initial}</div>
@@ -477,6 +825,14 @@ function createSongElement(song) {
 
   div.addEventListener('click', (e) => {
     if (e.target.closest('.song-remove') || e.target.closest('.song-path')) return;
+    if (e.ctrlKey || e.metaKey || e.target.closest('.song-select-box')) {
+      e.preventDefault();
+      if (selectedSongs.has(song.id)) selectedSongs.delete(song.id); else selectedSongs.add(song.id);
+      updateBatchToolbar();
+      renderVirtual();
+      return;
+    }
+    focusedIndex = idx;
     openLyricsModal(song);
   });
 
@@ -491,7 +847,8 @@ function createSongElement(song) {
     e.stopPropagation();
     await window.api.removeSong(song.id);
     songs.delete(song.id);
-    updateFilteredCache(); renderVirtual();
+    selectedSongs.delete(song.id);
+    updateFilteredCache(); renderVirtual(); updateBatchToolbar();
   });
 
   return div;
@@ -567,7 +924,7 @@ async function refreshAll() {
 
 function shortenPath(p) {
   const parts = p.replace(/\\/g, '/').split('/');
-  return parts.length > 3 ? '\u2026/' + parts.slice(-3).join('/') : parts.join('/');
+  return parts.length > 3 ? '…/' + parts.slice(-3).join('/') : parts.join('/');
 }
 
 function esc(text) {

@@ -1,70 +1,145 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lyrics Grabber</title>
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body data-theme="light">
   <div id="app">
-<header class="header">
+    <header class="header">
       <div class="header-left">
         <img src="icon.png" class="header-icon" alt="" />
         <span class="header-title">Lyrics Grabber</span>
         <button class="btn-icon" id="btn-folders" title="Folders">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
         </button>
       </div>
       <div class="header-actions">
         <button class="btn btn-primary btn-sm" id="btn-add-folder">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
           Add
         </button>
+
         <button class="btn btn-success btn-sm" id="btn-start">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21" />
+          </svg>
           Start
         </button>
+
         <button class="btn btn-warning btn-sm" id="btn-pause" style="display:none">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16" />
+            <rect x="14" y="4" width="4" height="16" />
+          </svg>
           Pause
         </button>
+
         <button class="btn-icon" id="btn-rescan" title="Re-scan folders">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
         </button>
+
         <div class="header-divider"></div>
+
         <button class="btn-icon" id="btn-retry" title="Retry failed">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="1 4 1 10 7 10" />
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
         </button>
+
         <button class="btn-icon" id="btn-clear" title="Clear completed">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
         </button>
       </div>
+
       <div class="header-right">
+        <button class="btn-icon" id="btn-stats" title="Statistics">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+        </button>
+        <button class="btn-icon" id="btn-settings" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+
         <button class="btn-icon" id="btn-theme" title="Toggle Theme">
-          <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+
+          <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
         </button>
       </div>
     </header>
-<div class="stats-row">
+
+    <div class="stats-row">
       <div class="stats-pills">
-        <div class="stat-pill"><span class="stat-label">Total</span><span class="stat-value" id="val-total">0</span></div>
-        <div class="stat-pill pending"><span class="stat-label">Pend</span><span class="stat-value" id="val-pending">0</span></div>
-        <div class="stat-pill processing"><span class="stat-label">Proc</span><span class="stat-value" id="val-processing">0</span></div>
-        <div class="stat-pill completed"><span class="stat-label">Done</span><span class="stat-value" id="val-completed">0</span></div>
-        <div class="stat-pill failed"><span class="stat-label">Fail</span><span class="stat-value" id="val-failed">0</span></div>
-        <div class="stat-pill skipped"><span class="stat-label">Skip</span><span class="stat-value" id="val-skipped">0</span></div>
+        <div class="stat-pill"><span class="stat-label">Total</span><span class="stat-value" id="val-total">0</span>
+        </div>
+        <div class="stat-pill pending"><span class="stat-label">Pend</span><span class="stat-value"
+            id="val-pending">0</span></div>
+        <div class="stat-pill processing"><span class="stat-label">Proc</span><span class="stat-value"
+            id="val-processing">0</span></div>
+        <div class="stat-pill completed"><span class="stat-label">Done</span><span class="stat-value"
+            id="val-completed">0</span></div>
+        <div class="stat-pill failed"><span class="stat-label">Fail</span><span class="stat-value"
+            id="val-failed">0</span></div>
+        <div class="stat-pill skipped"><span class="stat-label">Skip</span><span class="stat-value"
+            id="val-skipped">0</span></div>
       </div>
       <div class="progress-compact">
-        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
         <span class="progress-label" id="progress-text">0%</span>
         <span class="progress-eta" id="progress-eta"></span>
       </div>
     </div>
-<div class="filter-row">
+    <div class="batch-toolbar" id="batch-toolbar" style="display:none">
+      <span class="batch-count" id="batch-count">0 selected</span>
+      <button class="btn btn-sm btn-ghost" id="btn-batch-retry">Retry</button>
+      <button class="btn btn-sm btn-ghost" id="btn-batch-remove">Remove</button>
+      <button class="btn btn-sm btn-ghost" id="btn-batch-clear">Deselect All</button>
+    </div>
+    <div class="filter-row">
       <div class="search-wrapper">
-        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
         <input type="text" id="search-input" placeholder="Search... (Ctrl+F)" class="search-input">
       </div>
       <div class="filter-chips">
@@ -76,16 +151,27 @@
         <button class="chip" data-filter="skipped">Skipped</button>
       </div>
     </div>
-<div class="song-list" id="song-list">
+
+    <div class="song-list" id="song-list">
       <div class="empty-state" id="empty-state">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+          opacity="0.3">
+          <path d="M9 18V5l12-2v13" />
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="18" cy="16" r="3" />
+        </svg>
         <h3>No songs yet</h3>
         <p>Add a music folder or drag & drop to start</p>
       </div>
     </div>
-<div class="drop-overlay" id="drop-overlay">
+
+    <div class="drop-overlay" id="drop-overlay">
       <div class="drop-content">
-        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          <line x1="12" y1="11" x2="12" y2="17" />
+          <line x1="9" y1="14" x2="15" y2="14" />
+        </svg>
         <h3>Drop folders here</h3>
         <p>Recursive scan for music files</p>
       </div>
@@ -99,7 +185,7 @@
         <div class="scan-count" id="scan-count">0 files found</div>
       </div>
     </div>
-<div class="panel-overlay" id="folders-panel" style="display:none">
+    <div class="panel-overlay" id="folders-panel" style="display:none">
       <div class="panel-backdrop" id="panel-backdrop"></div>
       <div class="panel-content">
         <div class="panel-header">
@@ -109,13 +195,16 @@
         <div class="panel-body" id="folders-list"></div>
         <div class="panel-footer">
           <button class="btn btn-primary btn-full" id="btn-add-folder-panel">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
             Add Folder
           </button>
         </div>
       </div>
     </div>
-<div class="modal-overlay" id="lyrics-modal" style="display:none">
+    <div class="modal-overlay" id="lyrics-modal" style="display:none">
       <div class="modal-backdrop" id="modal-backdrop"></div>
       <div class="modal-content">
         <div class="modal-header">
@@ -125,6 +214,18 @@
           </div>
           <button class="btn-close" id="btn-close-modal">&times;</button>
         </div>
+        <div class="audio-player" id="audio-player" style="display:none">
+          <button class="btn-icon audio-play-btn" id="btn-audio-play" title="Play/Pause">
+            <svg class="icon-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21" /></svg>
+            <svg class="icon-pause-audio" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+          </button>
+          <span class="audio-time" id="audio-time">0:00</span>
+          <div class="audio-progress" id="audio-progress-bar">
+            <div class="audio-progress-fill" id="audio-progress-fill"></div>
+          </div>
+          <span class="audio-duration" id="audio-duration">0:00</span>
+          <button class="btn btn-sm btn-ghost" id="btn-sync-stamp" title="Insert timestamp at cursor">Sync</button>
+        </div>
         <textarea class="lyrics-editor" id="lyrics-editor" placeholder="No lyrics available..."></textarea>
         <div class="modal-footer">
           <button class="btn btn-ghost" id="btn-cancel-lyrics">Cancel</button>
@@ -132,8 +233,172 @@
         </div>
       </div>
     </div>
+
+    <div class="modal-overlay" id="stats-modal" style="display:none">
+      <div class="modal-backdrop" id="stats-backdrop"></div>
+      <div class="modal-content stats-content">
+        <div class="modal-header">
+          <div class="modal-title-group"><h3>Statistics</h3></div>
+          <button class="btn-close" id="btn-close-stats">&times;</button>
+        </div>
+        <div class="stats-dashboard" id="stats-dashboard"></div>
+      </div>
+    </div>
+
+    <div class="panel-overlay" id="settings-panel" style="display:none">
+      <div class="panel-backdrop" id="settings-backdrop"></div>
+      <div class="panel-content panel-right">
+        <div class="panel-header">
+          <h3>Settings</h3>
+          <button class="btn-close" id="btn-close-settings">&times;</button>
+        </div>
+        <div class="panel-body" id="settings-body">
+          <div class="settings-section">
+            <div class="settings-section-title">Theme</div>
+            <div class="theme-grid" id="theme-grid">
+              <div class="theme-swatch active" data-theme="light">
+                <div class="theme-swatch-colors">
+                  <div class="theme-swatch-bg" style="background:#FAFAFA"></div>
+                  <div class="theme-swatch-bg" style="background:#FFFFFF"></div>
+                  <div class="theme-swatch-accent" style="background:#00BCD4"></div>
+                </div>
+                <span class="theme-swatch-label">Lighter</span>
+              </div>
+              <div class="theme-swatch" data-theme="dark">
+                <div class="theme-swatch-colors">
+                  <div class="theme-swatch-bg" style="background:#212121"></div>
+                  <div class="theme-swatch-bg" style="background:#292929"></div>
+                  <div class="theme-swatch-accent" style="background:#FFCB6B"></div>
+                </div>
+                <span class="theme-swatch-label">Darker</span>
+              </div>
+              <div class="theme-swatch" data-theme="palenight">
+                <div class="theme-swatch-colors">
+                  <div class="theme-swatch-bg" style="background:#292D3E"></div>
+                  <div class="theme-swatch-bg" style="background:#303348"></div>
+                  <div class="theme-swatch-accent" style="background:#C792EA"></div>
+                </div>
+                <span class="theme-swatch-label">Palenight</span>
+              </div>
+              <div class="theme-swatch" data-theme="ocean">
+                <div class="theme-swatch-colors">
+                  <div class="theme-swatch-bg" style="background:#0F111A"></div>
+                  <div class="theme-swatch-bg" style="background:#1A1C25"></div>
+                  <div class="theme-swatch-accent" style="background:#82AAFF"></div>
+                </div>
+                <span class="theme-swatch-label">Ocean</span>
+              </div>
+              <div class="theme-swatch" data-theme="deepocean">
+                <div class="theme-swatch-colors">
+                  <div class="theme-swatch-bg" style="background:#090B10"></div>
+                  <div class="theme-swatch-bg" style="background:#0F111A"></div>
+                  <div class="theme-swatch-accent" style="background:#84FFFF"></div>
+                </div>
+                <span class="theme-swatch-label">Deep Ocean</span>
+              </div>
+              <div class="theme-swatch" data-theme="material">
+                <div class="theme-swatch-colors">
+                  <div class="theme-swatch-bg" style="background:#263238"></div>
+                  <div class="theme-swatch-bg" style="background:#2E3C43"></div>
+                  <div class="theme-swatch-accent" style="background:#80CBC4"></div>
+                </div>
+                <span class="theme-swatch-label">Default</span>
+              </div>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">General</div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="settings-item-label">Concurrent downloads</div>
+                <div class="settings-item-desc">Number of parallel lyrics fetches</div>
+              </div>
+              <div class="settings-stepper">
+                <button class="stepper-btn" id="concurrency-down">-</button>
+                <span class="stepper-value" id="concurrency-value">3</span>
+                <button class="stepper-btn" id="concurrency-up">+</button>
+              </div>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="settings-item-label">Skip existing LRC files</div>
+                <div class="settings-item-desc">Automatically skip songs that already have lyrics</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="toggle-skip-existing" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">Queue</div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="settings-item-label">Auto-start queue</div>
+                <div class="settings-item-desc">Automatically process when new songs are detected</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="toggle-auto-start">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">Monitoring</div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="settings-item-label">Watch folders for new files</div>
+                <div class="settings-item-desc">Automatically detect new audio files added to folders</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="toggle-watch-folders" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="settings-item-label">Desktop notifications</div>
+                <div class="settings-item-desc">Show notification when queue processing completes</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="toggle-notifications" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">Export / Import</div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="settings-item-label">Export LRC files</div>
+                <div class="settings-item-desc">Copy all lyrics to a folder</div>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="btn-export-lyrics">Export</button>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="settings-item-label">Import LRC files</div>
+                <div class="settings-item-desc">Match and import LRC files by filename</div>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="btn-import-lyrics">Import</button>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">Cache</div>
+            <div class="settings-item">
+              <div class="settings-item-info">
+                <div class="settings-item-label">Lyrics cache</div>
+                <div class="settings-item-desc" id="cache-stats-text">Loading...</div>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="btn-clear-cache">Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="renderer.js"></script>
 </body>
+
 </html>
