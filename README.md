@@ -1,6 +1,6 @@
 # Lyrics Grabber
 
-<img width="1186" height="793" alt="image" src="https://github.com/user-attachments/assets/2029d18f-2150-41c7-a897-98ba409f99a6" />
+<img width="969" height="616" alt="image" src="https://github.com/user-attachments/assets/94f76955-633a-49d9-ab69-04fc00d1bf14" />
 
 Automatic synchronized lyrics fetcher for your music library. Built for [Navidrome](https://www.navidrome.org/) / [Feishin](https://github.com/jeffvli/feishin) users who want `.lrc` files alongside their audio files — no manual work required.
 
