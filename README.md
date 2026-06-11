@@ -1,4 +1,4 @@
-1# Lyrics Grabber v1.0.1
+# Lyrics Grabber v1.0.1
 
 <img width="969" height="616" alt="image" src="https://github.com/user-attachments/assets/94f76955-633a-49d9-ab69-04fc00d1bf14" />
 
